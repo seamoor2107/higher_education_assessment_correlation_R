@@ -5,7 +5,7 @@ Analyzed large-scale education data in R to examine whether submission timing pr
 ---
 
 ## Research Question
-Does the number of days since the start of a learning module when a student submits an assessment predict a student’s assessment score? 
+Does the number of days between the start of a learning module and assessment submission predict a student’s score?
 
 Conclusion
 - The results of the correlation and linear model suggest that timing alone is a weak predictor of student performance.
