@@ -1,0 +1,139 @@
+---
+title: 
+format: html
+editor: visual
+---
+
+```{r}
+
+```
+
+only output is displayed).
+
+```{r}
+library("dplyr") #ggplot, cor(), cor.test(), linear model
+library("tidyverse") #for data preparation and manipulation
+```
+
+```{r}
+#read dataset into R & view 
+#assessmentdf <-read.csv("studentAssessment.csv")
+
+view(assessmentdf)
+
+glimpse(assessmentdf) #to check data types
+```
+
+```{r}
+#Transform "score" from character to numeric in order to run correlation and regression
+
+assessmentdf$score <- as.numeric(assessmentdf$score)
+  
+  
+
+glimpse(assessmentdf)
+
+#Decided to rename several of the columns to improve readability to support clarity
+
+assessmentdf <- assessmentdf  |>
+  rename(
+    assessment_id = id_assessment, 
+    student_id = id_student, 
+    banked = is_banked)
+     #this column was renamed to reflect the metric being measured. The variable is not the date, but the number of days an assessment was submitted, after the module began. 
+
+assessmentdf <- assessmentdf  |>
+  rename(number_of_days = date_submitted)
+
+view(assessmentdf)
+
+
+```
+
+```{r}
+#NAs removed
+#Submission timing was grouped into weekly intervals to reduce overplotting and improve interpretability. A reproducible random sample was used for visualization, with linear trends estimated on individual-level data.
+
+set.seed(42)
+
+plot_df <- assessmentdf %>%
+  # 1. Remove missing values FIRST
+  filter(
+    !is.na(number_of_days),
+    !is.na(score)
+  ) %>%
+  
+  # 2. Create week bins to make the data easier to read on the scatterplot
+  mutate(
+    week_bin = floor(number_of_days / 7)
+  ) %>%
+  
+  # 3. Then sample, again, so the scatterpoints are easier to read.
+  sample_n(min(5000, nrow(.)))
+
+# 4. Plot
+ggplot(plot_df, aes(x = week_bin, y = score)) +
+  geom_point(alpha = 0.3,
+             position = position_jitter(width = 0.2)) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(
+    title = "Assessment Score vs Submission Timing",
+    subtitle = "NAs removed before sampling (reproducible)",
+    x = "Weeks Since Module Start",
+    y = "Assessment Score"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+#When I ran the initial cor(), I received NAs. 
+#I decided to use complete.obs to tell R to only use rows where both variables are present, so I could get a correlation value
+cor
+
+cor(
+  assessmentdf$number_of_days,
+  assessmentdf$score,
+  method = "spearman",
+  use = "complete.obs"
+)
+
+assessmentdf |>
+  dplyr::select(score, number_of_days) |>
+  dplyr::filter(!is.na(score), !is.na(number_of_days)) |>
+  cor(method = "spearman", use = "complete.obs") |>
+  round(3)
+
+#The correlation value is -0.04. This indicates, as does our scatterplot, there is almost no relationship between how many days into the module a student submits there assessment and their assessment score. 
+
+```
+
+```{r}
+#While cor() gives mthe correlation coefficient, I also want a p-value and confidence interval. 
+#Will run cor.test() for these values.
+
+cor.test(assessmentdf$score, assessmentdf$number_of_days, 
+         alternative = "two.sided",
+         method = "pearson",
+         conf.level = 0.95)
+
+#This gives a p-value close to 0, which says that assuming there's no correlation between scores and number of days metrics, there's a 0% probability that we'd observe a correlation of r = 0.958, just due to random chance. 
+
+```
+
+```{r}
+#Simple Liner Regression
+
+lm1 <- lm(score ~ number_of_days, data = assessmentdf)
+
+summary(lm1)
+
+#Interpretation:
+#Analyzing the (Intercept) estimate, a student who submits their assessment at the very start of the  module, is predicted to score about a 76.6%. 
+
+#For each additional day later a student submits their assessment, their score decreases by 0.009 points on average. Again, the number of days a student has access to the learning module, shows little correlation to their assessment score. 
+
+#Looking at the Multiple R-squared, rounded to 3 decimal places, the value is 0.001. this means .1%, again, that this model's variables have no predictive power.
+
+#If I had more time I would test other independent variables such as, students' education level, gender. I would use a different statistical tests such as T-test or ANOVA. 
+
+```
